@@ -4,13 +4,16 @@ import android.app.Dialog
 import android.app.ProgressDialog
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
+import android.util.JsonReader
 import android.util.Log
 import androidx.lifecycle.lifecycleScope
+import com.google.gson.Gson
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import java.io.BufferedReader
+import java.io.DataOutputStream
 import java.io.InputStreamReader
 import java.net.HttpURLConnection
 import java.net.URL
@@ -22,8 +25,21 @@ class MainActivity : AppCompatActivity() {
         setContentView(R.layout.activity_main)
 
         lifecycleScope.launch{
-            var x=CallAPILogin().callAPILogin()
+            var x=CallAPILogin("xd","123").callAPILogin()
             Log.d("x",x.toString())
+
+            val responseData = Gson().fromJson(x, ResponseData::class.java)
+            Log.i("GSON data", responseData.toString())
+            Log.i("GSON id", responseData.id.toString())
+            Log.i("GSON name", responseData.name)
+            Log.i("GSON parents", responseData.parents[0])
+            Log.i("GSON parents details", responseData.parents_details[0].hobby)
+
+            for(item in responseData.parents_details.indices){ //looping through parents_details
+                Log.i("GSON parent ${item} hobby", responseData.parents_details[item].hobby)
+            }
+
+
 
             val jsobObject = JSONObject(x) //creating JSON object
             val text= jsobObject.optString("name")//getting text column
@@ -56,7 +72,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    inner class CallAPILogin(){
+    inner class CallAPILogin(val username: String, val password: String) {
 
         private lateinit var progressDialog: Dialog
         suspend fun callAPILogin() : String{
@@ -76,6 +92,23 @@ class MainActivity : AppCompatActivity() {
                     connection = url.openConnection() as HttpURLConnection
                     connection.doInput = true //do we get data?
                     connection.doOutput = true //do we post data?
+
+                    //setting request method
+                    connection.instanceFollowRedirects = false
+                    connection.requestMethod = "POST"
+                    connection.setRequestProperty("Content-Type", "application/json")
+                    connection.setRequestProperty("charset", "utf-8")
+                    connection.setRequestProperty("Accept", "application/json")
+                    connection.useCaches = false
+
+                    val writeDataOutputStream = DataOutputStream(connection.outputStream)
+                    val jsonRequest=JSONObject()
+                    jsonRequest.put("username",username)
+                    jsonRequest.put("password",password)
+                    writeDataOutputStream.writeBytes(jsonRequest.toString())
+                    writeDataOutputStream.flush()
+                    writeDataOutputStream.close()
+
 
                     val httpResult: Int = connection.responseCode //Status Code fe 200 OK
 
